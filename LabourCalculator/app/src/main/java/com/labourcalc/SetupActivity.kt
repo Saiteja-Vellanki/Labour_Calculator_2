@@ -9,6 +9,7 @@ import android.os.Bundle
 import android.os.Environment
 import android.provider.Settings
 import android.telephony.SmsManager
+import android.telephony.SubscriptionManager
 import android.view.View
 import android.widget.Button
 import android.widget.EditText
@@ -23,7 +24,8 @@ class SetupActivity : AppCompatActivity() {
 
     companion object {
         const val OTP_PHONE = "9666144894"
-        private const val REQ_PERMS = 42
+        private const val REQ_SMS = 42
+        private const val REQ_STORAGE = 43
     }
 
     private var generatedOtp: String = ""
@@ -47,33 +49,24 @@ class SetupActivity : AppCompatActivity() {
         inOtp.visibility = View.GONE
         btnVerify.visibility = View.GONE
 
-        askPermissions()
+        askStoragePermission()
 
         btnSendOtp.setOnClickListener { sendOtp() }
         btnVerify.setOnClickListener { verifyOtp() }
     }
 
-    private fun askPermissions() {
-        val need = mutableListOf<String>()
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS)
-            != PackageManager.PERMISSION_GRANTED
-        ) need.add(Manifest.permission.SEND_SMS)
-
+    private fun askStoragePermission() {
         if (Build.VERSION.SDK_INT < 30 &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
             != PackageManager.PERMISSION_GRANTED
-        ) need.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-
-        if (need.isNotEmpty()) {
-            ActivityCompat.requestPermissions(this, need.toTypedArray(), REQ_PERMS)
+        ) {
+            ActivityCompat.requestPermissions(
+                this, arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE), REQ_STORAGE
+            )
         }
-
-        // Android 11+ : "All files access" needed for the worker_data folder
         if (Build.VERSION.SDK_INT >= 30 && !Environment.isExternalStorageManager()) {
             Toast.makeText(
-                this,
-                "Please allow storage access for saving Excel data",
-                Toast.LENGTH_LONG
+                this, "Please allow storage access for saving Excel data", Toast.LENGTH_LONG
             ).show()
             try {
                 startActivity(
@@ -83,7 +76,11 @@ class SetupActivity : AppCompatActivity() {
                     )
                 )
             } catch (e: Exception) {
-                startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
+                try {
+                    startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
+                } catch (e2: Exception) {
+                    // device without this settings page - ignore
+                }
             }
         }
     }
@@ -92,6 +89,25 @@ class SetupActivity : AppCompatActivity() {
         if (Build.VERSION.SDK_INT >= 30) Environment.isExternalStorageManager()
         else ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) ==
                 PackageManager.PERMISSION_GRANTED
+
+    private fun smsManager(): SmsManager {
+        // Handles dual-SIM phones: use the default SMS subscription when available
+        return try {
+            val subId = SubscriptionManager.getDefaultSmsSubscriptionId()
+            if (subId != SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
+                if (Build.VERSION.SDK_INT >= 31)
+                    getSystemService(SmsManager::class.java).createForSubscriptionId(subId)
+                else
+                    @Suppress("DEPRECATION") SmsManager.getSmsManagerForSubscriptionId(subId)
+            } else {
+                if (Build.VERSION.SDK_INT >= 31) getSystemService(SmsManager::class.java)
+                else @Suppress("DEPRECATION") SmsManager.getDefault()
+            }
+        } catch (e: Exception) {
+            if (Build.VERSION.SDK_INT >= 31) getSystemService(SmsManager::class.java)
+            else @Suppress("DEPRECATION") SmsManager.getDefault()
+        }
+    }
 
     private fun sendOtp() {
         val name = inName.text.toString().trim()
@@ -102,45 +118,62 @@ class SetupActivity : AppCompatActivity() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS)
             != PackageManager.PERMISSION_GRANTED
         ) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.SEND_SMS), REQ_PERMS)
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.SEND_SMS), REQ_SMS)
             return
         }
 
-        generatedOtp = String.format("%06d", Random.nextInt(0, 1000000))
-        try {
-            val sms = if (Build.VERSION.SDK_INT >= 31)
-                getSystemService(SmsManager::class.java)
-            else
-                @Suppress("DEPRECATION") SmsManager.getDefault()
+        // 4-digit OTP
+        generatedOtp = Random.nextInt(1000, 10000).toString()
 
-            sms.sendTextMessage(
+        // Show OTP entry immediately - never leave the user stuck
+        inOtp.visibility = View.VISIBLE
+        btnVerify.visibility = View.VISIBLE
+        btnSendOtp.text = "Resend OTP"
+
+        try {
+            smsManager().sendTextMessage(
                 OTP_PHONE, null,
-                "Labour Calculator OTP: $generatedOtp . Do not share.",
+                "Labour Calculator OTP: $generatedOtp",
                 null, null
             )
-            tvOtpInfo.text = "OTP sent by SMS to $OTP_PHONE.\nEnter the OTP received on that number."
-            inOtp.visibility = View.VISIBLE
-            btnVerify.visibility = View.VISIBLE
-            btnSendOtp.text = "Resend OTP"
+            tvOtpInfo.text = "OTP sent by SMS to $OTP_PHONE.\nEnter the 4-digit OTP received on that number."
+            Toast.makeText(this, "OTP sent to $OTP_PHONE", Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
-            Toast.makeText(this, "SMS failed: ${e.message}. Check SIM.", Toast.LENGTH_LONG).show()
+            tvOtpInfo.text = "⚠ SMS could not be sent (${e.message}).\nCheck SIM & SMS balance, then tap Resend OTP."
+            Toast.makeText(this, "SMS failed: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
 
     private fun verifyOtp() {
-        if (!storageOk()) {
-            Toast.makeText(this, "Storage permission needed to save data", Toast.LENGTH_LONG).show()
-            askPermissions()
+        val entered = inOtp.text.toString().trim()
+        if (generatedOtp.isEmpty()) {
+            Toast.makeText(this, "Tap Send OTP first", Toast.LENGTH_SHORT).show()
             return
         }
-        val entered = inOtp.text.toString().trim()
-        if (entered.isNotEmpty() && entered == generatedOtp) {
-            SetupManager.saveActivation(this, inName.text.toString())
-            Toast.makeText(this, "Login successful ✔", Toast.LENGTH_SHORT).show()
-            startActivity(Intent(this, MainActivity::class.java))
-            finish()
-        } else {
+        if (entered != generatedOtp) {
             Toast.makeText(this, "Wrong OTP, please try again", Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (!storageOk()) {
+            Toast.makeText(this, "Storage permission needed to save data", Toast.LENGTH_LONG).show()
+            askStoragePermission()
+            return
+        }
+        SetupManager.saveActivation(this, inName.text.toString())
+        Toast.makeText(this, "Login successful ✔", Toast.LENGTH_SHORT).show()
+        startActivity(Intent(this, MainActivity::class.java))
+        finish()
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int, permissions: Array<out String>, grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQ_SMS &&
+            grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED
+        ) {
+            // Auto-continue instead of making the user tap again
+            sendOtp()
         }
     }
 }
