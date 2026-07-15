@@ -28,8 +28,11 @@ jobs:
       - name: Build debug APK
         run: gradle assembleDebug --no-daemon
 
+      - name: Rename APK
+        run: mv app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/FarmerBook.apk
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: LabourCalculator-APK
-          path: LabourCalculator/app/build/outputs/apk/debug/app-debug.apk
+          name: FarmerBook-APK
+          path: LabourCalculator/app/build/outputs/apk/debug/FarmerBook.apk
