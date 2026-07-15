@@ -15,7 +15,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="40dp"
+            android:layout_marginTop="32dp"
             android:text="🙏"
             android:textSize="48sp" />
 
@@ -32,15 +32,47 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:text="One-time setup"
+            android:text="One-time activation"
             android:textColor="#E1D5F5"
             android:textSize="15sp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
+            android:text="YOUR DEVICE CODE"
+            android:textColor="#E1D5F5"
+            android:textSize="13sp"
+            android:letterSpacing="0.1" />
+
+        <TextView
+            android:id="@+id/tvDeviceCode"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:background="@drawable/bg_chip"
+            android:gravity="center"
+            android:padding="14dp"
+            android:text="--------"
+            android:textColor="#FFEB3B"
+            android:textSize="28sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.15" />
+
+        <TextView
+            android:id="@+id/tvOtpInfo"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:gravity="center"
+            android:textColor="#FFF59D"
+            android:textSize="14sp" />
 
         <EditText
             android:id="@+id/inName"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="36dp"
+            android:layout_marginTop="24dp"
             android:background="#FFFFFF"
             android:hint="Enter your name"
             android:inputType="textPersonName"
@@ -48,34 +80,15 @@
             android:textColor="#212121"
             android:textColorHint="#888888" />
 
-        <Button
-            android:id="@+id/btnSendOtp"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:backgroundTint="#FF6F00"
-            android:text="Send OTP"
-            android:textColor="#FFFFFF"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/tvOtpInfo"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:gravity="center"
-            android:textColor="#FFF59D"
-            android:textSize="14sp" />
-
         <EditText
             android:id="@+id/inOtp"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
+            android:layout_marginTop="14dp"
             android:background="#FFFFFF"
-            android:hint="Enter OTP"
+            android:hint="Enter 6-digit Activation Code"
             android:inputType="number"
-            android:maxLength="4"
+            android:maxLength="6"
             android:padding="14dp"
             android:textColor="#212121"
             android:textColorHint="#888888" />
@@ -84,9 +97,9 @@
             android:id="@+id/btnVerify"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
+            android:layout_marginTop="18dp"
             android:backgroundTint="#2E7D32"
-            android:text="Verify &amp; Login"
+            android:text="Activate &amp; Login"
             android:textColor="#FFFFFF"
             android:textStyle="bold" />
     </LinearLayout>
